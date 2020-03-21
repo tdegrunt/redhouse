@@ -84,6 +84,10 @@ then
         [ alternate_names ]
         DNS.1 = $1
         DNS.2 = *.$1
+
+        [ req_ext ]
+        keyUsage = digitalSignature
+        extendedKeyUsage = codeSigning
     "
     echo "$cnf" > $PATH_CNF
 
@@ -93,7 +97,7 @@ then
         -key "$PATH_KEY" \
         -new -sha256 -out "$PATH_CSR" 2>/dev/null
     openssl x509 -req -extfile "$PATH_CNF" \
-        -extensions server_cert -days 1825 -sha256 \
+        -extensions server_cert -days 825 -sha256 \
         -in "$PATH_CSR" \
         -CA "$PATH_ROOT_CRT" -CAkey "$PATH_ROOT_KEY" -CAcreateserial \
         -out "$PATH_CRT" 2>/dev/null
