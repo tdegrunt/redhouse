@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 class Redhouse
   def self.configure(config, settings)
-    config.vm.box = 'mrkcor/redhouse'
+    config.vm.box = 'redhouse'
     config.ssh.forward_agent = true
     config.vm.network :private_network, ip: settings['ip'] ||= '192.168.10.42'
 
@@ -32,15 +34,15 @@ class Redhouse
           mount_opts = []
 
           if folder['type'] == 'nfs'
-            mount_opts = folder['mount_options'] ? folder['mount_options'] : ['actimeo=1', 'nolock']
+            mount_opts = folder['mount_options'] || ['actimeo=1', 'nolock']
           elsif folder['type'] == 'smb'
-            mount_opts = folder['mount_options'] ? folder['mount_options'] : ['vers=3.02', 'mfsymlinks']
+            mount_opts = folder['mount_options'] || ['vers=3.02', 'mfsymlinks']
 
-            smb_creds = {smb_host: folder['smb_host'], smb_username: folder['smb_username'], smb_password: folder['smb_password']}
+            smb_creds = { smb_host: folder['smb_host'], smb_username: folder['smb_username'], smb_password: folder['smb_password'] }
           end
 
           # For b/w compatibility keep separate 'mount_opts', but merge with options
-          options = (folder['options'] || {}).merge({mount_options: mount_opts}).merge(smb_creds || {})
+          options = (folder['options'] || {}).merge({ mount_options: mount_opts }).merge(smb_creds || {})
 
           # Double-splat (**) operator only works with symbol keys, so convert
           options.keys.each { |k| options[k.to_sym] = options.delete(k) }
@@ -53,7 +55,7 @@ class Redhouse
           end
         else
           config.vm.provision 'shell' do |s|
-            s.inline = ">&2 echo \"Unable to mount one of your folders. Please check your folders in Homestead.yaml\""
+            s.inline = '>&2 echo "Unable to mount one of your folders. Please check your folders in Homestead.yaml"'
           end
         end
       end
@@ -96,9 +98,9 @@ class Redhouse
           # specific site type script (defaults to rails)
           s.path = script_dir + "/site-types/#{type}.sh"
           s.args = [
-              site['map'], # $1
-              site['to'], # $2
-              site['port'] ||= port, # $3
+            site['map'], # $1
+            site['to'], # $2
+            site['port'] ||= port # $3
           ]
         end
 
@@ -106,12 +108,12 @@ class Redhouse
         config.vm.provision 'shell', path: script_dir + '/install-ruby.sh', args: [site['ruby']]
 
         config.vm.provision 'shell' do |s|
-          s.path = script_dir + "/hosts-add.sh"
+          s.path = script_dir + '/hosts-add.sh'
           s.args = ['127.0.0.1', site['map']]
         end
 
         # Configure The Cron Schedule
-        if site.has_key?('schedule')
+        if site.key?('schedule')
           config.vm.provision 'shell' do |s|
             s.name = 'Creating Schedule'
 
@@ -119,14 +121,14 @@ class Redhouse
               s.path = script_dir + '/cron-schedule.sh'
               s.args = [site['map'].tr('^A-Za-z0-9', ''), site['to']]
             else
-              s.inline = "rm -f /etc/cron.d/$1"
+              s.inline = 'rm -f /etc/cron.d/$1'
               s.args = [site['map'].tr('^A-Za-z0-9', '')]
             end
           end
         else
           config.vm.provision 'shell' do |s|
             s.name = 'Checking for old Schedule'
-            s.inline = "rm -f /etc/cron.d/$1"
+            s.inline = 'rm -f /etc/cron.d/$1'
             s.args = [site['map'].tr('^A-Za-z0-9', '')]
           end
         end
@@ -144,15 +146,9 @@ class Redhouse
     end
 
     # Configure All Of The Configured Databases
-    if settings.has_key?('databases')
+    if settings.key?('databases')
       # Check which databases are enabled
       settings['databases'].each do |db|
-        config.vm.provision 'shell' do |s|
-          s.name = 'Creating MySQL Database: ' + db
-          s.path = script_dir + '/create-mysql.sh'
-          s.args = [db]
-        end
-
         config.vm.provision 'shell' do |s|
           s.name = 'Creating Postgres Database: ' + db
           s.path = script_dir + '/create-postgres.sh'
